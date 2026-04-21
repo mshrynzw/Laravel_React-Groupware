@@ -66,7 +66,7 @@
 
 ## 5. 承認フロー制御（案）
 
-1. 申請作成時に `approvals` 行を `step_order` 順に生成（承認者は組織マスタから解決）。
+1. 申請作成時に `approvals` 行を `step_order` 順に生成（承認者はグループマスタから解決）。
 2. `submit` で `status=pending`、最初の承認待ちへ。
 3. `approve` は `current_step` の行の `approver_user_id` がログインユーザーと一致（または代理権限）を確認。
 4. 最終段階まで承認されたら `requests.status=approved`。途中却下で `rejected`。

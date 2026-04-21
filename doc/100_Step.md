@@ -41,9 +41,9 @@ Phase5：高度機能
 ## 組織管理
 
 ```txt
-- organizationsテーブル
-- departmentsテーブル
-- user_organization関連付け
+- companiesテーブル
+- groupsテーブル
+- user_company関連付け
 - 組織ツリー表示
 ```
 

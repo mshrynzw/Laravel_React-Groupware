@@ -1,0 +1,266 @@
+%% 本図は doc/basic_design および doc/detailed_design に基づく PostgreSQL 向け概念モデル。
+%% 全文検索は社内検索設計どおり、主に既存テーブルへの tsvector 等で実装（別テーブル必須ではない）。
+
+erDiagram
+
+    users {
+        bigint id PK
+        string family_name
+        string first_name
+        string email
+        timestamp email_verified_at
+        string password
+        string remember_token
+        timestamp deleted_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    roles {
+        bigint id PK
+        string name
+        string slug
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    role_user {
+        bigint user_id FK
+        bigint role_id FK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    companies {
+        bigint id PK
+        string name
+        string code
+        bigint parent_id FK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    groups {
+        bigint id PK
+        bigint company_id FK
+        string name
+        bigint parent_id FK
+        int sort_order
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    user_company {
+        bigint user_id FK
+        bigint company_id FK
+        bigint department_id FK
+        boolean primary
+        date started_on
+        date ended_on
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    personal_access_tokens {
+        bigint id PK
+        string tokenable_type
+        bigint tokenable_id
+        string name
+        string token
+        text abilities
+        timestamp last_used_at
+        timestamp expires_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    attendance_records {
+        bigint id PK
+        bigint user_id FK
+        string type
+        timestamp recorded_at
+        string source
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    requests {
+        bigint id PK
+        bigint user_id FK
+        string type
+        string status
+        jsonb payload
+        int current_step
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    approvals {
+        bigint id PK
+        bigint request_id FK
+        int step_order
+        bigint approver_user_id FK
+        string result
+        text comment
+        timestamp acted_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    announcements {
+        bigint id PK
+        string title
+        text body
+        bigint author_user_id FK
+        timestamp published_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    files {
+        bigint id PK
+        bigint user_id FK
+        string original_name
+        string disk
+        string path
+        bigint size
+        string mime_type
+        string visibility
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    chat_rooms {
+        bigint id PK
+        string name
+        string type
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    chat_room_user {
+        bigint chat_room_id FK
+        bigint user_id FK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    chat_messages {
+        bigint id PK
+        bigint chat_room_id FK
+        bigint user_id FK
+        text body
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    tasks {
+        bigint id PK
+        string title
+        text description
+        string status
+        timestamp due_at
+        bigint creator_user_id FK
+        bigint assignee_user_id FK
+        int position
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    schedules {
+        bigint id PK
+        bigint user_id FK
+        string title
+        text description
+        timestamp start_at
+        timestamp end_at
+        boolean all_day
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    wiki_pages {
+        bigint id PK
+        string slug
+        string title
+        text body
+        bigint parent_id FK
+        bigint updated_by FK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    wiki_revisions {
+        bigint id PK
+        bigint wiki_page_id FK
+        text body
+        bigint editor_user_id FK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    payroll_runs {
+        bigint id PK
+        int period_year
+        int period_month
+        string status
+        bigint executed_by FK
+        timestamp executed_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    payroll_slips {
+        bigint id PK
+        bigint payroll_run_id FK
+        bigint user_id FK
+        decimal gross_amount
+        decimal net_amount
+        jsonb breakdown
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% --- Relationships ---
+
+    users ||--o{ role_user : ""
+    roles ||--o{ role_user : ""
+
+    users ||--o{ personal_access_tokens : ""
+
+    users ||--o{ user_company : ""
+    companies ||--o{ user_company : ""
+    groups ||--o{ user_company : "department_id"
+
+    companies ||--o{ groups : ""
+    companies ||--o{ companies : "parent"
+    groups ||--o{ groups : "parent"
+
+    users ||--o{ attendance_records : ""
+
+    users ||--o{ requests : ""
+    requests ||--o{ approvals : ""
+    users ||--o{ approvals : "approver"
+
+    users ||--o{ announcements : "author"
+
+    users ||--o{ files : ""
+
+    users ||--o{ chat_room_user : ""
+    chat_rooms ||--o{ chat_room_user : ""
+    chat_rooms ||--o{ chat_messages : ""
+    users ||--o{ chat_messages : ""
+
+    users ||--o{ tasks : "creator"
+    users ||--o{ tasks : "assignee"
+
+    users ||--o{ schedules : ""
+
+    users ||--o{ wiki_pages : "updated_by"
+    wiki_pages ||--o{ wiki_pages : "parent"
+    wiki_pages ||--o{ wiki_revisions : ""
+    users ||--o{ wiki_revisions : "editor"
+
+    users ||--o{ payroll_runs : "executed_by"
+    payroll_runs ||--o{ payroll_slips : ""
+    users ||--o{ payroll_slips : ""

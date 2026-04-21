@@ -1,0 +1,44 @@
+---
+description: Laravel + React グループウェア共通方針（agent.md の要約・自動適用）
+alwaysApply: true
+---
+
+# プロジェクト共通ルール
+
+詳細・背景は `.cursor/agent.md` および `doc/` を参照。
+
+## 応答
+
+- ユーザーへの説明は **日本語** で行う。
+
+## 設計ドキュメントの優先順位
+
+判断に迷ったときは次の順。
+
+1. `doc/000_Requirements Specification.md`
+2. `doc/100_Step.md`
+3. `doc/basic_design/`
+4. `doc/detailed_design/`
+5. `doc/200_Design_Database.mermaid`
+
+API 共通形式・監査ログは `doc/basic_design/90_横断タスク_基本設計.md` と `doc/detailed_design/90_横断タスク_詳細設計.md` を優先する。
+
+## スタック前提
+
+- バックエンド: Laravel API、認証: Sanctum
+- フロント: React（Vite）+ React Router、`src/frontend/`
+- DB: PostgreSQL（Laravel と同一ホスト想定。本番 API は ConoHa VPS）
+- 本番フロント配信: Cloudflare（詳細は要件定義 §3）
+
+## 実装の約束事
+
+- マイグレーションでは `created_at` / `updated_at` を原則 **NOT NULL**（`nullableTimestamps()` にしない）
+- 監査ログは基本設計の非機能に沿って検討する
+- 依頼範囲外のリファクタや無関係ドキュメントを増やさない
+
+## テスト
+
+- **コードを生成・変更するときは、単体テストと結合テストのコードも同じ変更単位で作成・更新する**
+- テストは最低でも **正常系 1 件 + 異常系 1 件** を含める
+- **API / 画面 / DB スキーマ** に影響する変更では、結合テストを必須とする
+- 実装完了時は `php artisan test` の通過を確認できる状態を目標にする

@@ -94,7 +94,13 @@ DB_PASSWORD=password
 
 ```bash
 php artisan migrate
-php artisan serve
+php artisan serve --host=localhost --port=8000
+```
+
+ローカルでメール起動（Mailpit）
+
+```bash
+docker run -d --name mailpit -p 8025:8025 -p 1025:1025 axllent/mailpit
 ```
 
 ---
@@ -106,6 +112,41 @@ cd frontend
 
 npm install
 npm run dev
+```
+
+---
+
+## 🧪 テスト
+
+ローカルで API とフロントの自動テストを実行できます。
+
+GitHub に `push` したとき、または Pull Request を開いたときに **GitHub Actions**（`.github/workflows/ci.yml`）が動き、バックエンドの `php artisan test` とフロントの `pnpm test`・`pnpm run build` が自動実行されます。
+
+### バックエンド（PHPUnit）
+
+```bash
+cd src/backend
+php artisan test
+```
+
+特定のファイルだけ実行する例:
+
+```bash
+php artisan test tests/Feature/AuthFlowTest.php
+```
+
+### フロントエンド（Vitest）
+
+```bash
+cd src/frontend
+pnpm install   # 初回のみ
+pnpm test
+```
+
+ファイル変更のたびに再実行するウォッチモード:
+
+```bash
+pnpm test:watch
 ```
 
 ---
@@ -157,6 +198,9 @@ PostgreSQL
 
 * 認証
 * ユーザー管理
+* グループ管理
+
+実装状況の詳細は `doc/300_Phase1_実装状況.md` を参照。
 
 ### Phase 2
 

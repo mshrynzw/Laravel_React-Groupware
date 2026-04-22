@@ -15,6 +15,8 @@ const pageTitles: { [key: string]: string } = {
   '/attendance': '勤怠管理',
   '/payroll': '給与計算',
   '/search': '社内検索',
+  '/users': 'ユーザー管理',
+  '/groups': 'グループ管理',
 };
 
 export function Layout() {

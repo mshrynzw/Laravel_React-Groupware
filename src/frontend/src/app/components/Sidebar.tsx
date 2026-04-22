@@ -11,8 +11,11 @@ import {
   GitBranch, 
   Clock, 
   DollarSign, 
-  Search 
+  Search,
+  Users,
+  Building2
 } from 'lucide-react';
+import { useAuth } from '../auth/AuthContext';
 
 const navigation = [
   { name: 'トップページ', href: '/dashboard', icon: LayoutDashboard },
@@ -26,9 +29,13 @@ const navigation = [
   { name: '勤怠管理', href: '/attendance', icon: Clock },
   { name: '給与計算', href: '/payroll', icon: DollarSign },
   { name: '社内検索', href: '/search', icon: Search },
+  { name: 'ユーザー管理', href: '/users', icon: Users },
+  { name: 'グループ管理', href: '/groups', icon: Building2 },
 ];
 
 export function Sidebar() {
+  const { user } = useAuth();
+
   return (
     <aside className="w-64 h-screen bg-sidebar border-r border-sidebar-border flex flex-col">
       <div className="p-6">
@@ -60,8 +67,8 @@ export function Sidebar() {
             田
           </div>
           <div className="flex-1">
-            <div className="text-sm">田中太郎</div>
-            <div className="text-xs text-muted-foreground">開発部</div>
+            <div className="text-sm">{user?.name ?? 'ゲスト'}</div>
+            <div className="text-xs text-muted-foreground">{user?.role ?? '-'}</div>
           </div>
         </div>
       </div>

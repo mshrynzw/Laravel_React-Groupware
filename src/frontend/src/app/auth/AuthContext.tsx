@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost, getCsrfCookie } from '../lib/api';
+import { disconnectEcho, initEcho } from '../lib/echo';
 
 type AuthUser = {
   id: number;
@@ -27,8 +28,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const me = await apiGet<AuthUser>('/api/me');
       setUser(me);
+      initEcho();
     } catch {
       setUser(null);
+      disconnectEcho();
     }
   };
 
@@ -39,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    disconnectEcho();
     await apiPost('/api/logout');
     setUser(null);
   };

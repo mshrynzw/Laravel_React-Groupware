@@ -103,6 +103,15 @@ php artisan serve --host=localhost --port=8000
 docker run -d --name mailpit -p 8025:8025 -p 1025:1025 axllent/mailpit
 ```
 
+#### チャットのリアルタイム（Laravel Reverb・任意）
+
+チャットの即時更新に **WebSocket（Reverb + Echo）** を使う場合のみ次を行います。未設定のときは従来どおり **HTTP ポーリング**のみで動作します。
+
+1. **`src/backend/.env`** で `BROADCAST_CONNECTION=reverb` とし、**`src/backend/.env.example`** の `REVERB_*` および `REVERB_SERVER_*` を参考に値を揃える。
+2. API サーバーと**別ターミナル**で、バックエンドディレクトリに移動してから `php artisan reverb:start` を実行する。
+
+フロント側は **`src/frontend/.env.example`** の `VITE_REVERB_*` を **`src/frontend/.env`** にコピーし、バックエンドの `REVERB_APP_KEY`・ホスト・ポート・スキーム（`REVERB_HOST` / `REVERB_PORT` / `REVERB_SCHEME`）と一致させる。本番ではリバースプロキシや TLS に合わせて別途調整する。
+
 ---
 
 ### 3. Frontend Setup (React)
@@ -113,6 +122,8 @@ cd frontend
 npm install
 npm run dev
 ```
+
+チャットの WebSocket を使う場合は、上記「チャットのリアルタイム（Laravel Reverb・任意）」のとおり **`VITE_REVERB_*`** を設定し、バックエンドで `reverb:start` を起動する。
 
 ---
 

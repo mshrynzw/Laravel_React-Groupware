@@ -1,60 +1,34 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
-import { Plus, MoreVertical } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { apiGet, apiPatch, apiPost } from '../lib/api';
 
-interface Task {
+type TaskStatus = 'todo' | 'in_progress' | 'done';
+
+type ApiTask = {
   id: number;
   title: string;
-  description: string;
-  priority: 'high' | 'medium' | 'low';
-  assignee: string;
-}
+  description: string | null;
+  status: TaskStatus;
+  position: number;
+  assignee?: { id: number; name: string; email: string } | null;
+};
 
-interface Column {
-  id: string;
-  title: string;
-  tasks: Task[];
-}
+type Paginated<T> = { data: T[] };
 
-const initialColumns: Column[] = [
-  {
-    id: 'todo',
-    title: '未着手',
-    tasks: [
-      { id: 1, title: 'デザインレビュー', description: 'UIデザインの確認', priority: 'high', assignee: '田中' },
-      { id: 2, title: 'API設計', description: 'エンドポイントの設計', priority: 'medium', assignee: '佐藤' },
-    ]
-  },
-  {
-    id: 'inProgress',
-    title: '進行中',
-    tasks: [
-      { id: 3, title: 'データベース設計', description: 'テーブル構造の設計', priority: 'high', assignee: '鈴木' },
-      { id: 4, title: 'テスト実装', description: 'ユニットテストの作成', priority: 'low', assignee: '山田' },
-    ]
-  },
-  {
-    id: 'review',
-    title: 'レビュー',
-    tasks: [
-      { id: 5, title: 'コードレビュー', description: 'プルリクエストの確認', priority: 'medium', assignee: '高橋' },
-    ]
-  },
-  {
-    id: 'done',
-    title: '完了',
-    tasks: [
-      { id: 6, title: '要件定義', description: 'プロジェクト要件の整理', priority: 'high', assignee: '渡辺' },
-      { id: 7, title: 'キックオフミーティング', description: 'プロジェクト開始会議', priority: 'medium', assignee: '伊藤' },
-    ]
-  }
+type ColumnDef = { id: string; title: string; status: TaskStatus };
+
+const COLUMNS: ColumnDef[] = [
+  { id: 'todo', title: '未着手', status: 'todo' },
+  { id: 'in_progress', title: '進行中', status: 'in_progress' },
+  { id: 'done', title: '完了', status: 'done' },
 ];
 
-function TaskCard({ task }: { task: Task }) {
+function TaskCard({ task }: { task: ApiTask }) {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'TASK',
     item: { id: task.id },
@@ -63,17 +37,7 @@ function TaskCard({ task }: { task: Task }) {
     }),
   }));
 
-  const priorityColors = {
-    high: 'error',
-    medium: 'warning',
-    low: 'info',
-  } as const;
-
-  const priorityLabels = {
-    high: '高',
-    medium: '中',
-    low: '低',
-  };
+  const assigneeLabel = task.assignee?.name ?? '未割当';
 
   return (
     <div
@@ -82,51 +46,45 @@ function TaskCard({ task }: { task: Task }) {
         isDragging ? 'opacity-50' : ''
       }`}
     >
-      <div className="flex items-start justify-between mb-2">
-        <h4 className="text-sm flex-1">{task.title}</h4>
-        <button className="p-1 hover:bg-accent rounded">
-          <MoreVertical className="w-3 h-3" />
-        </button>
-      </div>
-      <p className="text-xs text-muted-foreground mb-3">{task.description}</p>
+      <h4 className="text-sm mb-1">{task.title}</h4>
+      {task.description && <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{task.description}</p>}
       <div className="flex items-center justify-between">
-        <Badge variant={priorityColors[task.priority]} className="text-xs">
-          {priorityLabels[task.priority]}
+        <Badge variant="default" className="text-xs">
+          {assigneeLabel}
         </Badge>
-        <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs">
-          {task.assignee[0]}
-        </div>
       </div>
     </div>
   );
 }
 
-function TaskColumn({ column, onDrop }: { column: Column; onDrop: (taskId: number, columnId: string) => void }) {
+function TaskColumn({
+  column,
+  tasks,
+  onDrop,
+}: {
+  column: ColumnDef;
+  tasks: ApiTask[];
+  onDrop: (taskId: number, targetStatus: TaskStatus) => void;
+}) {
   const [{ isOver }, drop] = useDrop(() => ({
     accept: 'TASK',
-    drop: (item: { id: number }) => onDrop(item.id, column.id),
+    drop: (item: { id: number }) => onDrop(item.id, column.status),
     collect: (monitor) => ({
       isOver: monitor.isOver(),
     }),
   }));
 
   return (
-    <div
-      ref={drop}
-      className={`flex-1 min-w-[280px] ${isOver ? 'opacity-50' : ''}`}
-    >
+    <div ref={drop} className={`flex-1 min-w-[280px] ${isOver ? 'ring-2 ring-primary/40 rounded-lg' : ''}`}>
       <Card className="h-full">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h3>{column.title}</h3>
-            <Badge variant="default">{column.tasks.length}</Badge>
+            <Badge variant="default">{tasks.length}</Badge>
           </div>
-          <button className="p-1 hover:bg-accent rounded">
-            <Plus className="w-4 h-4" />
-          </button>
         </div>
         <div className="space-y-3">
-          {column.tasks.map((task) => (
+          {tasks.map((task) => (
             <TaskCard key={task.id} task={task} />
           ))}
         </div>
@@ -136,49 +94,98 @@ function TaskColumn({ column, onDrop }: { column: Column; onDrop: (taskId: numbe
 }
 
 export function Tasks() {
-  const [columns, setColumns] = useState(initialColumns);
+  const [tasks, setTasks] = useState<ApiTask[]>([]);
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDescription, setNewDescription] = useState('');
 
-  const handleDrop = (taskId: number, targetColumnId: string) => {
-    setColumns((prevColumns) => {
-      // タスクを探して移動
-      let taskToMove: Task | null = null;
-      const newColumns = prevColumns.map((column) => ({
-        ...column,
-        tasks: column.tasks.filter((task) => {
-          if (task.id === taskId) {
-            taskToMove = task;
-            return false;
-          }
-          return true;
-        }),
-      }));
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiGet<Paginated<ApiTask>>('/api/tasks?per_page=200');
+      setTasks(res.data);
+      setMessage('');
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : '取得に失敗しました。');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-      // 新しいカラムに追加
-      if (taskToMove) {
-        const targetColumn = newColumns.find((col) => col.id === targetColumnId);
-        if (targetColumn) {
-          targetColumn.tasks.push(taskToMove);
-        }
-      }
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-      return newColumns;
-    });
+  const tasksForStatus = (s: TaskStatus) =>
+    tasks.filter((t) => t.status === s).sort((a, b) => a.position - b.position || b.id - a.id);
+
+  const handleDrop = async (taskId: number, targetStatus: TaskStatus) => {
+    const targetList = tasks.filter((t) => t.status === targetStatus);
+    const position = targetList.length;
+    try {
+      await apiPatch(`/api/tasks/${taskId}`, { status: targetStatus, position });
+      await load();
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : '移動に失敗しました。');
+    }
+  };
+
+  const createTask = async () => {
+    if (!newTitle.trim()) return;
+    setMessage('');
+    try {
+      await apiPost('/api/tasks', {
+        title: newTitle.trim(),
+        description: newDescription.trim() || null,
+        status: 'todo',
+      });
+      setNewTitle('');
+      setNewDescription('');
+      await load();
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : '作成に失敗しました。');
+    }
   };
 
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <h2 className="text-2xl">タスク管理</h2>
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
-            新規タスク
-          </Button>
         </div>
 
+        {message && <p className="text-sm text-destructive">{message}</p>}
+        {loading && <p className="text-sm text-muted-foreground">読み込み中…</p>}
+
+        <Card className="p-4 space-y-3">
+          <h3 className="text-sm font-medium">新規タスク</h3>
+          <input
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            placeholder="タイトル"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+          />
+          <textarea
+            className="w-full min-h-[60px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+            placeholder="説明（任意）"
+            value={newDescription}
+            onChange={(e) => setNewDescription(e.target.value)}
+          />
+          <Button type="button" className="gap-2" onClick={() => void createTask()}>
+            <Plus className="w-4 h-4" />
+            作成
+          </Button>
+        </Card>
+
         <div className="flex gap-4 overflow-x-auto pb-4">
-          {columns.map((column) => (
-            <TaskColumn key={column.id} column={column} onDrop={handleDrop} />
+          {COLUMNS.map((column) => (
+            <TaskColumn
+              key={column.id}
+              column={column}
+              tasks={tasksForStatus(column.status)}
+              onDrop={(id, st) => void handleDrop(id, st)}
+            />
           ))}
         </div>
       </div>

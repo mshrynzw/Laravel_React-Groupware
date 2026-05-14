@@ -86,6 +86,26 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(StoredFile::class, 'user_id');
     }
 
+    public function tasksCreated(): HasMany
+    {
+        return $this->hasMany(Task::class, 'creator_user_id');
+    }
+
+    public function tasksAssigned(): HasMany
+    {
+        return $this->hasMany(Task::class, 'assignee_user_id');
+    }
+
+    public function schedules(): HasMany
+    {
+        return $this->hasMany(Schedule::class, 'user_id');
+    }
+
+    public function chatRooms(): BelongsToMany
+    {
+        return $this->belongsToMany(ChatRoom::class, 'chat_room_user')->withTimestamps();
+    }
+
     public function isSuperAdmin(): bool
     {
         return $this->role === self::ROLE_SUPERADMIN;

@@ -57,9 +57,9 @@
 
 | 項目 | 内容 |
 |------|------|
-| イベント | `MessageSent` → `broadcast(new MessageSent($message))` |
-| チャネル | `private-chat.{roomId}` |
-| 認可 | `routes/channels.php` でルーム参加者のみ `join` 可 |
+| イベント | `App\Events\ChatMessageSent` → `broadcast(new ChatMessageSent($message))`（`ShouldBroadcastNow`） |
+| チャネル | `PrivateChannel('chat.{roomId}')`（クライアント側は `private-chat.{roomId}`） |
+| 認可 | `routes/channels.php` の `chat.{roomId}` でルーム参加者のみ購読可。`/broadcasting/auth` は `web` + `auth:sanctum` |
 
 **フロント**: Laravel Echo + `pusher-js`（Reverb 互換エンドポイント）。
 
@@ -93,7 +93,7 @@
 
 ## 6. Laravel クラス（案）
 
-`ChatRoomController`, `ChatMessageController`, `MessageSent`（ShouldBroadcast）, `ChatRoomPolicy`。
+`ChatRoomController`, `ChatMessageController`, `App\Events\ChatMessageSent`, `routes/channels.php`（ルーム参加はコントローラ内のメンバー確認で実装）。
 
 ---
 
@@ -110,3 +110,12 @@
 
 - 非参加者がメッセージ POST で 403
 - ブロードキャストペイロードに本文が含まれる（本番は長文制限）
+
+---
+
+## 9. MVP 実装メモ（リポジトリ現状）
+
+- **リアルタイム**: `VITE_REVERB_*` を設定しバックエンドで `BROADCAST_CONNECTION=reverb` かつ `php artisan reverb:start` を動かすと、ログイン後に **Laravel Echo**（`pusher-js`）で `private-chat.{roomId}` を購読し、イベント名 **`.MessageSent`**（`broadcastAs`: `MessageSent`）でメッセージを追記する。未設定時は **HTTP ポーリング**（約 4 秒）のみ。併用時は Echo 受信に加え **約 30 秒**のバックアップポーリング。
+- **API**: §2 の REST を実装済み。送信成功時に `ChatMessageSent` をブロードキャスト（`ChatMessageController`）。テストは `tests/Feature/Phase4ChatTest.php`（403、イベント dispatch 等）。
+- **運用**: ローカル手順はリポジトリ `README.md`（バックエンドセットアップ内「チャットのリアルタイム」）および `src/backend/.env.example` / `src/frontend/.env.example` を参照。
+

@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
 
 type RequestOptions = RequestInit & {
   expectJson?: boolean;
@@ -11,6 +11,17 @@ function getCookieValue(name: string): string | null {
     ?.split('=')[1];
 
   return value ? decodeURIComponent(value) : null;
+}
+
+/** Laravel Echo の `/broadcasting/auth` 用ヘッダー（Sanctum SPA + CSRF） */
+export function broadcastAuthHeaders(): Record<string, string> {
+  const xsrfToken = getCookieValue('XSRF-TOKEN');
+
+  return {
+    Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+    ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken } : {}),
+  };
 }
 
 async function request(path: string, options: RequestOptions = {}) {

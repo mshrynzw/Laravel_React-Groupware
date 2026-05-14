@@ -1,8 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiDelete, apiDownloadFile, apiGet, apiPost, apiPostFormData, getCsrfCookie } from './api';
-
-/** `api.ts` と同じ解決式（Vitest では .env の VITE_* が効く） */
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
+import {
+  API_BASE_URL,
+  apiDelete,
+  apiDownloadFile,
+  apiGet,
+  apiPost,
+  apiPostFormData,
+  getCsrfCookie,
+} from './api';
 
 describe('api helpers', () => {
   const fetchMock = vi.fn();
@@ -26,7 +31,7 @@ describe('api helpers', () => {
 
     await expect(apiGet('/api/me')).resolves.toEqual({ ok: true });
     expect(fetchMock).toHaveBeenCalledWith(
-      `${API_BASE}/api/me`,
+      `${API_BASE_URL}/api/me`,
       expect.objectContaining({
         method: 'GET',
         credentials: 'include',
@@ -56,7 +61,7 @@ describe('api helpers', () => {
 
     await apiPost('/api/login', { email: 'a@b.com', password: 'secret' });
     expect(fetchMock).toHaveBeenCalledWith(
-      `${API_BASE}/api/login`,
+      `${API_BASE_URL}/api/login`,
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ email: 'a@b.com', password: 'secret' }),
@@ -101,7 +106,7 @@ describe('api helpers', () => {
     }
 
     expect(fetchMock).toHaveBeenCalledWith(
-      `${API_BASE}/api/files/1/download`,
+      `${API_BASE_URL}/api/files/1/download`,
       expect.objectContaining({
         method: 'GET',
         credentials: 'include',
@@ -123,7 +128,7 @@ describe('api helpers', () => {
   it('getCsrfCookie: sanctum のエンドポイントを叩く', async () => {
     fetchMock.mockResolvedValue({ ok: true } as Response);
     await getCsrfCookie();
-    expect(fetchMock).toHaveBeenCalledWith(`${API_BASE}/sanctum/csrf-cookie`, {
+    expect(fetchMock).toHaveBeenCalledWith(`${API_BASE_URL}/sanctum/csrf-cookie`, {
       credentials: 'include',
     });
   });

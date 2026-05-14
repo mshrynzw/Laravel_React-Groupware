@@ -91,7 +91,7 @@ WHERE user_id = ? AND start_at < ? AND end_at > ?
 
 | 項目 | 内容 |
 |------|------|
-| カレンダー | FullCalendar 等、`from`/`to` をビュー切替で再取得 |
+| カレンダー | `Schedule.tsx` で **月／週**切替。週は日曜始まり・7 列グリッド。`from` / `to` は `src/app/lib/scheduleCalendar.ts` の `monthRangeIso` / `weekRangeIso` で算出し、ビュー切替・週送りで `GET /api/schedules` を再取得 |
 | フォーム | タイムゾーンはブラウザ→API は ISO 文字列 |
 
 ---

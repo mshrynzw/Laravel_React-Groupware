@@ -25,24 +25,28 @@ export function Dashboard() {
   const [todayRecords, setTodayRecords] = useState<AttendanceRecordRow[]>([]);
   const [pendingCount, setPendingCount] = useState<number | null>(null);
   const [attendanceBusy, setAttendanceBusy] = useState(false);
+  const [announcements, setAnnouncements] = useState<{ id: number; title: string; published_at: string }[]>([]);
 
   useEffect(() => {
     const today = todayDateInTokyo();
     let cancelled = false;
     (async () => {
       try {
-        const [recRes, pendingRes] = await Promise.all([
+        const [recRes, pendingRes, annRes] = await Promise.all([
           apiGet<Paginated<AttendanceRecordRow>>(`/api/attendance/records?from=${today}&to=${today}&per_page=50`),
           apiGet<Paginated<unknown>>('/api/requests?mode=pending_approval&per_page=100'),
+          apiGet<Paginated<{ id: number; title: string; published_at: string }>>('/api/announcements?per_page=3'),
         ]);
         if (!cancelled) {
           setTodayRecords(recRes.data);
           setPendingCount(pendingRes.data.length);
+          setAnnouncements(annRes.data);
         }
       } catch {
         if (!cancelled) {
           setTodayRecords([]);
           setPendingCount(null);
+          setAnnouncements([]);
         }
       }
     })();
@@ -146,15 +150,19 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="pb-3 border-b border-border">
-                <p className="text-sm mb-1">全社会議のお知らせ</p>
-                <p className="text-xs text-muted-foreground">2時間前</p>
-              </div>
-              <div className="pb-3 border-b border-border">
-                <p className="text-sm mb-1">システムメンテナンス</p>
-                <p className="text-xs text-muted-foreground">1日前</p>
-              </div>
-              <Button variant="ghost" size="sm" className="w-full">
+              {announcements.length === 0 ? (
+                <p className="text-sm text-muted-foreground">お知らせはありません。</p>
+              ) : (
+                announcements.map((a) => (
+                  <div key={a.id} className="pb-3 border-b border-border last:border-0 last:pb-0">
+                    <p className="text-sm mb-1">{a.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(a.published_at).toLocaleString('ja-JP')}
+                    </p>
+                  </div>
+                ))
+              )}
+              <Button variant="ghost" size="sm" className="w-full" type="button" onClick={() => navigate('/announcements')}>
                 すべて見る
               </Button>
             </div>

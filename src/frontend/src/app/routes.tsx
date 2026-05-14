@@ -10,6 +10,8 @@ import { VerifyEmailCallback } from './pages/VerifyEmailCallback';
 import { Dashboard } from './pages/Dashboard';
 import { Chat } from './pages/Chat';
 import { Announcements } from './pages/Announcements';
+import { AnnouncementsOutlet } from './pages/AnnouncementsOutlet';
+import { AnnouncementDetail } from './pages/AnnouncementDetail';
 import { Wiki } from './pages/Wiki';
 import { Schedule } from './pages/Schedule';
 import { Tasks } from './pages/Tasks';
@@ -72,7 +74,11 @@ export const router = createBrowserRouter([
       },
       {
         path: 'announcements',
-        element: <Announcements />,
+        element: <AnnouncementsOutlet />,
+        children: [
+          { index: true, element: <Announcements /> },
+          { path: ':id', element: <AnnouncementDetail /> },
+        ],
       },
       {
         path: 'wiki',

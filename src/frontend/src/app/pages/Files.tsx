@@ -1,102 +1,174 @@
-import React from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import { Button } from '../components/Button';
-import { Badge } from '../components/Badge';
-import { FileText, Image, File, FolderOpen, Upload, Download, MoreVertical } from 'lucide-react';
+import { FileText, Image, File, Upload, Download, Trash2 } from 'lucide-react';
+import { apiDelete, apiDownloadFile, apiGet, apiPostFormData, getCsrfCookie } from '../lib/api';
 
-const files = [
-  { id: 1, name: 'プロジェクト提案書.pdf', type: 'pdf', size: '2.4 MB', uploadedAt: '2026年4月15日', uploadedBy: '田中太郎' },
-  { id: 2, name: 'デザインモックアップ.fig', type: 'figma', size: '8.1 MB', uploadedAt: '2026年4月14日', uploadedBy: '佐藤花子' },
-  { id: 3, name: '会議議事録.docx', type: 'word', size: '156 KB', uploadedAt: '2026年4月13日', uploadedBy: '鈴木一郎' },
-  { id: 4, name: 'ロゴデザイン.png', type: 'image', size: '3.2 MB', uploadedAt: '2026年4月12日', uploadedBy: '山田美咲' },
-  { id: 5, name: 'データ分析.xlsx', type: 'excel', size: '1.8 MB', uploadedAt: '2026年4月11日', uploadedBy: '高橋健太' },
-  { id: 6, name: 'プレゼン資料.pptx', type: 'powerpoint', size: '5.6 MB', uploadedAt: '2026年4月10日', uploadedBy: '渡辺直美' },
-];
+type Owner = { id: number; name: string; email: string };
 
-const folders = [
-  { id: 1, name: 'プロジェクトA', count: 24 },
-  { id: 2, name: 'マーケティング', count: 18 },
-  { id: 3, name: 'デザイン', count: 32 },
-  { id: 4, name: '営業資料', count: 15 },
-];
+type FileRow = {
+  id: number;
+  original_name: string;
+  size: number;
+  mime_type: string;
+  created_at: string;
+  user_id: number;
+  owner?: Owner;
+};
 
-function getFileIcon(type: string) {
-  switch (type) {
-    case 'pdf':
-    case 'word':
-      return <FileText className="w-8 h-8 text-primary" />;
-    case 'image':
-      return <Image className="w-8 h-8 text-secondary" />;
-    default:
-      return <File className="w-8 h-8 text-muted-foreground" />;
-  }
+type Paginated<T> = { data: T[] };
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function iconForMime(m: string) {
+  if (m.startsWith('image/')) return <Image className="w-8 h-8 text-secondary" />;
+  if (m === 'application/pdf') return <FileText className="w-8 h-8 text-primary" />;
+  return <File className="w-8 h-8 text-muted-foreground" />;
 }
 
 export function Files() {
+  const [rows, setRows] = useState<FileRow[]>([]);
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await apiGet<Paginated<FileRow>>('/api/files?per_page=100');
+      setRows(res.data);
+      setMessage('');
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : '一覧の取得に失敗しました。');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const onPickFile = async (file: File | null) => {
+    if (!file) return;
+    setUploading(true);
+    setMessage('');
+    try {
+      await getCsrfCookie();
+      const fd = new FormData();
+      fd.append('file', file);
+      await apiPostFormData<{ data: FileRow }>('/api/files', fd);
+      await load();
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : 'アップロードに失敗しました。');
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  const download = async (f: FileRow) => {
+    setMessage('');
+    try {
+      await apiDownloadFile(`/api/files/${f.id}/download`, f.original_name);
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : 'ダウンロードに失敗しました。');
+    }
+  };
+
+  const remove = async (f: FileRow) => {
+    if (!window.confirm(`「${f.original_name}」を削除しますか？`)) return;
+    setMessage('');
+    try {
+      await apiDelete(`/api/files/${f.id}`);
+      await load();
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : '削除に失敗しました。');
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* ヘッダー */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-2xl">ファイル共有</h2>
-        <Button className="gap-2">
-          <Upload className="w-4 h-4" />
-          ファイルをアップロード
-        </Button>
-      </div>
-
-      {/* フォルダー */}
-      <div>
-        <h3 className="mb-4">フォルダー</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {folders.map((folder) => (
-            <Card key={folder.id} className="hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <FolderOpen className="w-6 h-6 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="mb-1">{folder.name}</h4>
-                  <p className="text-xs text-muted-foreground">{folder.count}個のファイル</p>
-                </div>
-              </div>
-            </Card>
-          ))}
+        <div>
+          <input
+            ref={inputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.png,.jpg,.jpeg,.gif,.txt,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+            onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)}
+          />
+          <Button className="gap-2" type="button" disabled={uploading} onClick={() => inputRef.current?.click()}>
+            <Upload className="w-4 h-4" />
+            {uploading ? 'アップロード中…' : 'ファイルをアップロード'}
+          </Button>
         </div>
       </div>
 
-      {/* 最近のファイル */}
-      <div>
-        <h3 className="mb-4">最近のファイル</h3>
-        <Card>
-          <div className="divide-y divide-border">
-            {files.map((file) => (
-              <div key={file.id} className="flex items-center gap-4 p-4 hover:bg-accent transition-colors">
-                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                  {getFileIcon(file.type)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="mb-1 truncate">{file.name}</h4>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>{file.size}</span>
-                    <span>•</span>
-                    <span>{file.uploadedAt}</span>
-                    <span>•</span>
-                    <span>{file.uploadedBy}</span>
+      {message && <p className="text-sm text-destructive">{message}</p>}
+      {loading && <p className="text-sm text-muted-foreground">読み込み中…</p>}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>ファイル一覧</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {rows.length === 0 && !loading ? (
+            <p className="p-6 text-sm text-muted-foreground">ファイルがありません。</p>
+          ) : (
+            <div className="divide-y divide-border">
+              {rows.map((file) => (
+                <div
+                  key={file.id}
+                  className="flex items-center gap-4 p-4 hover:bg-accent transition-colors"
+                >
+                  <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    {iconForMime(file.mime_type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="mb-1 truncate font-medium">{file.original_name}</h4>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span>{formatBytes(file.size)}</span>
+                      <span>•</span>
+                      <span>{new Date(file.created_at).toLocaleString('ja-JP')}</span>
+                      {file.owner && (
+                        <>
+                          <span>•</span>
+                          <span>{file.owner.name}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      type="button"
+                      className="p-2 hover:bg-muted rounded-lg transition-colors"
+                      title="ダウンロード"
+                      onClick={() => void download(file)}
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      className="p-2 hover:bg-muted rounded-lg transition-colors text-destructive"
+                      title="削除"
+                      onClick={() => void remove(file)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button className="p-2 hover:bg-muted rounded-lg transition-colors">
-                    <Download className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 hover:bg-muted rounded-lg transition-colors">
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

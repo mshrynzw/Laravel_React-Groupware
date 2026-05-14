@@ -116,6 +116,21 @@ npm run dev
 
 ---
 
+## 📤 ファイル共有（アップロード上限・ストレージ）
+
+### アップロード上限
+
+- API のバリデーション上限は **`MAX_UPLOAD_KB`**（既定 10240 KB ≒ 10MB）。`src/backend/.env.example` を参照。
+- PHP の **`upload_max_filesize`** / **`post_max_size`** がこれより小さいと、Laravel に届く前に失敗することがあります。本番・ステージングでは `php.ini` と `.env` を揃えてください。
+
+### S3（Amazon Simple Storage Service）とは
+
+**AWS が提供するインターネット上のオブジェクトストレージ**です。バケットという単位でファイルを保存し、アクセスキーとバケットポリシーで権限を制御します。本アプリでは `FILESYSTEM_DISK=s3` と `AWS_*` 環境変数を設定すると、アップロード済みファイルの実体を VPS ローカルではなく S3 に置けます（API は `FileController` で一時署名 URL またはストリームを返します）。
+
+**注意**: `AWS_ACCESS_KEY_ID` 等の秘密情報はリポジトリにコミットしないでください。
+
+---
+
 ## 🧪 テスト
 
 ローカルで API とフロントの自動テストを実行できます。
@@ -168,6 +183,7 @@ pnpm test:watch
 /dashboard
 /chat
 /announcements
+/announcements/:id
 /wiki
 /schedule
 /tasks

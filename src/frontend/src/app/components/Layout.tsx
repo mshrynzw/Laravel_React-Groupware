@@ -21,7 +21,13 @@ const pageTitles: { [key: string]: string } = {
 
 export function Layout() {
   const location = useLocation();
-  const title = pageTitles[location.pathname] || 'ページ';
+  let title = pageTitles[location.pathname] || 'ページ';
+  if (location.pathname.startsWith('/announcements')) {
+    title = 'お知らせ';
+  }
+  if (location.pathname.startsWith('/files')) {
+    title = 'ファイル共有';
+  }
 
   return (
     <div className="flex h-screen bg-background">

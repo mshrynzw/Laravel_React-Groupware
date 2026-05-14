@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\ApprovalRuleController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\FileController;
 use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WorkflowRequestController;
@@ -46,4 +48,17 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/workflow/rules/{rule}/publish', [ApprovalRuleController::class, 'publish']);
     Route::post('/workflow/rules/{rule}/activate', [ApprovalRuleController::class, 'activate']);
     Route::post('/workflow/rules/{rule}/deactivate', [ApprovalRuleController::class, 'deactivate']);
+
+    Route::get('/announcements', [AnnouncementController::class, 'index']);
+    Route::get('/announcements/{announcement}', [AnnouncementController::class, 'show']);
+    Route::get('/admin/announcements', [AnnouncementController::class, 'adminIndex']);
+    Route::post('/announcements', [AnnouncementController::class, 'store']);
+    Route::patch('/announcements/{announcement}', [AnnouncementController::class, 'update']);
+    Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update']);
+    Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
+
+    Route::get('/files', [FileController::class, 'index']);
+    Route::post('/files', [FileController::class, 'store']);
+    Route::get('/files/{stored_file}/download', [FileController::class, 'download'])->whereNumber('stored_file');
+    Route::delete('/files/{stored_file}', [FileController::class, 'destroy'])->whereNumber('stored_file');
 });

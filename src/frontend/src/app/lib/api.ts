@@ -63,6 +63,41 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   }) as Promise<T>;
 }
 
+export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
+  return request(path, {
+    method: 'PATCH',
+    body: body ? JSON.stringify(body) : undefined,
+  }) as Promise<T>;
+}
+
+export async function apiPostFormData<T>(path: string, formData: FormData): Promise<T> {
+  const xsrfToken = getCookieValue('XSRF-TOKEN');
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      Accept: 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+      ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken } : {}),
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let message = 'API request failed';
+    try {
+      const data = await response.json();
+      message = data.message ?? message;
+    } catch {
+      // no-op
+    }
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<T>;
+}
+
 export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
   return request(path, {
     method: 'PUT',
@@ -75,4 +110,37 @@ export async function apiDelete(path: string): Promise<void> {
     method: 'DELETE',
     expectJson: false,
   });
+}
+
+/** 認証付きでバイナリを取得し、ブラウザで保存ダイアログを開く */
+export async function apiDownloadFile(path: string, filename: string): Promise<void> {
+  const xsrfToken = getCookieValue('XSRF-TOKEN');
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      Accept: 'application/octet-stream',
+      'X-Requested-With': 'XMLHttpRequest',
+      ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken } : {}),
+    },
+  });
+
+  if (!response.ok) {
+    let message = 'ダウンロードに失敗しました。';
+    try {
+      const data = await response.json();
+      message = data.message ?? message;
+    } catch {
+      // no-op
+    }
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }

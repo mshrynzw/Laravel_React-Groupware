@@ -1,38 +1,126 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
-import { Clock, FileText, Bell, TrendingUp } from 'lucide-react';
+import { FileText, Bell, TrendingUp } from 'lucide-react';
+import { apiGet, apiPost } from '../lib/api';
+import { todayDateInTokyo } from '../lib/attendanceDates';
+
+type AttendanceRecordRow = {
+  id: number;
+  type: 'clock_in' | 'clock_out';
+  recorded_at: string;
+};
+
+type Paginated<T> = { data: T[] };
 
 export function Dashboard() {
-  const currentTime = new Date().toLocaleTimeString('ja-JP', { 
-    hour: '2-digit', 
-    minute: '2-digit' 
+  const navigate = useNavigate();
+  const currentTime = new Date().toLocaleTimeString('ja-JP', {
+    hour: '2-digit',
+    minute: '2-digit',
   });
+
+  const [todayRecords, setTodayRecords] = useState<AttendanceRecordRow[]>([]);
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
+  const [attendanceBusy, setAttendanceBusy] = useState(false);
+
+  useEffect(() => {
+    const today = todayDateInTokyo();
+    let cancelled = false;
+    (async () => {
+      try {
+        const [recRes, pendingRes] = await Promise.all([
+          apiGet<Paginated<AttendanceRecordRow>>(`/api/attendance/records?from=${today}&to=${today}&per_page=50`),
+          apiGet<Paginated<unknown>>('/api/requests?mode=pending_approval&per_page=100'),
+        ]);
+        if (!cancelled) {
+          setTodayRecords(recRes.data);
+          setPendingCount(pendingRes.data.length);
+        }
+      } catch {
+        if (!cancelled) {
+          setTodayRecords([]);
+          setPendingCount(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const lastToday = todayRecords.length > 0 ? todayRecords[todayRecords.length - 1] : null;
+  const canClockIn = !lastToday || lastToday.type === 'clock_out';
+  const canClockOut = lastToday?.type === 'clock_in';
+
+  const quickClockIn = async () => {
+    setAttendanceBusy(true);
+    try {
+      await apiPost('/api/attendance/clock-in', { source: 'web' });
+      const today = todayDateInTokyo();
+      const recRes = await apiGet<Paginated<AttendanceRecordRow>>(`/api/attendance/records?from=${today}&to=${today}&per_page=50`);
+      setTodayRecords(recRes.data);
+    } finally {
+      setAttendanceBusy(false);
+    }
+  };
+
+  const quickClockOut = async () => {
+    setAttendanceBusy(true);
+    try {
+      await apiPost('/api/attendance/clock-out', { source: 'web' });
+      const today = todayDateInTokyo();
+      const recRes = await apiGet<Paginated<AttendanceRecordRow>>(`/api/attendance/records?from=${today}&to=${today}&per_page=50`);
+      setTodayRecords(recRes.data);
+    } finally {
+      setAttendanceBusy(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* 勤怠カード */}
       <Card className="bg-gradient-to-br from-primary/10 to-secondary/10">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="mb-2">今日の勤怠</h3>
             <p className="text-3xl mb-4">{currentTime}</p>
-            <div className="flex gap-2">
-              <Badge variant="success">出勤中</Badge>
-              <span className="text-sm text-muted-foreground">09:00 出勤</span>
+            <div className="flex flex-wrap gap-2 items-center">
+              {lastToday?.type === 'clock_in' && (
+                <>
+                  <Badge variant="success">出勤中</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    {new Date(lastToday.recorded_at).toLocaleTimeString('ja-JP', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      timeZone: 'Asia/Tokyo',
+                    })}{' '}
+                    出勤
+                  </span>
+                </>
+              )}
+              {lastToday?.type === 'clock_out' && (
+                <Badge variant="default">本日は退勤済み</Badge>
+              )}
+              {!lastToday && <span className="text-sm text-muted-foreground">本日はまだ打刻がありません。</span>}
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline">休憩</Button>
-            <Button>退勤</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" type="button" onClick={() => navigate('/attendance')}>
+              勤怠画面へ
+            </Button>
+            <Button variant="outline" disabled={attendanceBusy || !canClockIn} onClick={() => void quickClockIn()}>
+              出勤
+            </Button>
+            <Button disabled={attendanceBusy || !canClockOut} onClick={() => void quickClockOut()}>
+              退勤
+            </Button>
           </div>
         </div>
       </Card>
 
-      {/* ウィジェットグリッド */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* 未承認申請 */}
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -41,17 +129,14 @@ export function Dashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl mb-2">3件</p>
-            <p className="text-sm text-muted-foreground mb-4">
-              承認待ちの申請があります
-            </p>
-            <Button variant="outline" size="sm" className="w-full">
+            <p className="text-3xl mb-2">{pendingCount === null ? '—' : `${pendingCount}件`}</p>
+            <p className="text-sm text-muted-foreground mb-4">あなたの承認待ちの申請です。</p>
+            <Button variant="outline" size="sm" className="w-full" type="button" onClick={() => navigate('/workflow')}>
               確認する
             </Button>
           </CardContent>
         </Card>
 
-        {/* 最新のお知らせ */}
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -76,7 +161,6 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* 今週のタスク */}
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -101,7 +185,6 @@ export function Dashboard() {
         </Card>
       </div>
 
-      {/* 最近のアクティビティ */}
       <Card>
         <CardHeader>
           <CardTitle>最近のアクティビティ</CardTitle>

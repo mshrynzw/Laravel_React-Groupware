@@ -10,6 +10,11 @@ class AuditLogger
 {
     public static function log(Request $request, string $event, ?Model $target = null, array $payload = []): void
     {
+        $requestId = $request->attributes->get('request_id');
+        if (is_string($requestId) && $requestId !== '') {
+            $payload = array_merge(['request_id' => $requestId], $payload);
+        }
+
         AuditLog::create([
             'actor_user_id' => $request->user()?->id,
             'event' => $event,

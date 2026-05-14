@@ -1,8 +1,11 @@
 <?php
 
+use App\Http\Controllers\Api\ApprovalRuleController;
+use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\WorkflowRequestController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('guest');
@@ -23,4 +26,24 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::apiResource('users', UserController::class);
     Route::apiResource('groups', GroupController::class);
+
+    Route::post('/attendance/clock-in', [AttendanceController::class, 'clockIn']);
+    Route::post('/attendance/clock-out', [AttendanceController::class, 'clockOut']);
+    Route::get('/attendance/records', [AttendanceController::class, 'records']);
+    Route::get('/attendance/summary', [AttendanceController::class, 'summary']);
+
+    Route::get('/requests', [WorkflowRequestController::class, 'index']);
+    Route::post('/requests', [WorkflowRequestController::class, 'store']);
+    Route::get('/requests/{requestModel}', [WorkflowRequestController::class, 'show']);
+    Route::post('/requests/{requestModel}/submit', [WorkflowRequestController::class, 'submit']);
+    Route::post('/requests/{requestModel}/approve', [WorkflowRequestController::class, 'approve']);
+    Route::post('/requests/{requestModel}/reject', [WorkflowRequestController::class, 'reject']);
+    Route::get('/requests/{requestModel}/resolution', [WorkflowRequestController::class, 'resolution']);
+
+    Route::get('/workflow/rules', [ApprovalRuleController::class, 'index']);
+    Route::post('/workflow/rules', [ApprovalRuleController::class, 'store']);
+    Route::patch('/workflow/rules/{rule}', [ApprovalRuleController::class, 'update']);
+    Route::post('/workflow/rules/{rule}/publish', [ApprovalRuleController::class, 'publish']);
+    Route::post('/workflow/rules/{rule}/activate', [ApprovalRuleController::class, 'activate']);
+    Route::post('/workflow/rules/{rule}/deactivate', [ApprovalRuleController::class, 'deactivate']);
 });

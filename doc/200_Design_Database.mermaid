@@ -107,6 +107,44 @@ erDiagram
         timestamp updated_at
     }
 
+    approval_rules {
+        bigint id PK
+        string name
+        string request_type
+        string scope_type
+        bigint scope_id
+        int priority
+        boolean is_active
+        bigint created_by FK
+        bigint updated_by FK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    approval_rule_versions {
+        bigint id PK
+        bigint approval_rule_id FK
+        int version_no
+        jsonb conditions
+        jsonb steps
+        boolean is_published
+        timestamp published_at
+        bigint created_by FK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    request_rule_resolutions {
+        bigint id PK
+        bigint request_id FK
+        bigint approval_rule_id FK
+        bigint approval_rule_version_id FK
+        jsonb resolved_steps
+        jsonb matched_context
+        timestamp created_at
+        timestamp updated_at
+    }
+
     announcements {
         bigint id PK
         string title
@@ -241,6 +279,13 @@ erDiagram
     users ||--o{ requests : ""
     requests ||--o{ approvals : ""
     users ||--o{ approvals : "approver"
+    users ||--o{ approval_rules : "created_by"
+    users ||--o{ approval_rules : "updated_by"
+    approval_rules ||--o{ approval_rule_versions : ""
+    users ||--o{ approval_rule_versions : "created_by"
+    requests ||--|| request_rule_resolutions : ""
+    approval_rules ||--o{ request_rule_resolutions : ""
+    approval_rule_versions ||--o{ request_rule_resolutions : ""
 
     users ||--o{ announcements : "author"
 

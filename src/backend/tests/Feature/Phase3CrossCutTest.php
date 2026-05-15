@@ -20,6 +20,11 @@ class Phase3CrossCutTest extends TestCase
         $this->getJson('/api/files')->assertUnauthorized();
     }
 
+    public function test_guest_get_wiki_pages_returns_401(): void
+    {
+        $this->getJson('/api/wiki/pages')->assertUnauthorized();
+    }
+
     public function test_phase3_list_uses_paginate_shape(): void
     {
         $user = User::factory()->create(['role' => User::ROLE_MEMBER]);

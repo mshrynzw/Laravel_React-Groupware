@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\ScheduleController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\WikiPageController;
 use App\Http\Controllers\Api\WorkflowRequestController;
 use Illuminate\Support\Facades\Route;
 
@@ -84,4 +85,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/chat/rooms', [ChatRoomController::class, 'store']);
     Route::get('/chat/rooms/{chat_room}/messages', [ChatMessageController::class, 'index']);
     Route::post('/chat/rooms/{chat_room}/messages', [ChatMessageController::class, 'store']);
+
+    Route::get('/wiki/pages', [WikiPageController::class, 'index']);
+    Route::get('/wiki/pages/tree', [WikiPageController::class, 'tree']);
+    Route::get('/wiki/pages/by-slug/{slug}', [WikiPageController::class, 'showBySlug'])
+        ->where('slug', '[a-z0-9]+(?:-[a-z0-9]+)*');
+    Route::get('/wiki/pages/{wiki_page}/revisions', [WikiPageController::class, 'revisions']);
+    Route::get('/wiki/pages/{wiki_page}/revisions/{wiki_revision}', [WikiPageController::class, 'showRevision']);
+    Route::post('/wiki/pages', [WikiPageController::class, 'store']);
+    Route::put('/wiki/pages/{wiki_page}', [WikiPageController::class, 'update']);
+    Route::delete('/wiki/pages/{wiki_page}', [WikiPageController::class, 'destroy']);
 });

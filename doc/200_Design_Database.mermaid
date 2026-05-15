@@ -223,6 +223,7 @@ erDiagram
         string title
         text body
         bigint parent_id FK
+        bigint created_by FK
         bigint updated_by FK
         timestamp created_at
         timestamp updated_at
@@ -301,6 +302,7 @@ erDiagram
 
     users ||--o{ schedules : ""
 
+    users ||--o{ wiki_pages : "created_by"
     users ||--o{ wiki_pages : "updated_by"
     wiki_pages ||--o{ wiki_pages : "parent"
     wiki_pages ||--o{ wiki_revisions : ""

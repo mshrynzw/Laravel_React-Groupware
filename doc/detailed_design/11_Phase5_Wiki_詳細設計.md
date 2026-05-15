@@ -93,3 +93,12 @@
 
 - スラッグ重複で 422
 - リビジョンが 1 更新につき 1 件増えること
+
+---
+
+## 8. MVP 実装メモ（リポジトリ現状）
+
+- **テーブル**: `wiki_pages`、`wiki_revisions`（更新で直前の `title` / `body` を保存。ページ削除時は FK cascade で履歴も削除）。
+- **API**: `GET /api/wiki/pages`（ページネーション・`q`）、`GET /api/wiki/pages/tree`（階層 JSON）、`GET /api/wiki/pages/by-slug/{slug}`、`GET /api/wiki/pages/{id}/revisions`・`GET .../revisions/{revision_id}`、`POST` / `PUT` / `DELETE`（作成・更新・削除は **admin / superadmin**）。更新はリクエストの `updated_at` と DB の秒単位一致で楽観ロック、不一致は **409**。親を自分・子孫にできない検証は **422**。
+- **監査**: `wiki.created` / `wiki.updated` / `wiki.deleted` / `wiki.revision_saved`（`tests/Feature/Phase5WikiTest.php`）。
+- **フロント**: `src/app/pages/wiki/*`、ルート `/wiki`・`/wiki/view/:slug`・`/wiki/new`・`/wiki/edit/:slug`。一覧に階層ナビ、表示に履歴と行ベース差分（`diff`）、編集に親ページセレクト。Markdown は `react-markdown` + `remark-gfm`。

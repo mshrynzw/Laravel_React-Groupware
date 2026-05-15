@@ -25,8 +25,8 @@ export function Layout() {
   if (location.pathname.startsWith('/announcements')) {
     title = 'お知らせ';
   }
-  if (location.pathname.startsWith('/files')) {
-    title = 'ファイル共有';
+  if (location.pathname.startsWith('/wiki')) {
+    title = 'Wiki';
   }
 
   return (

@@ -12,7 +12,10 @@ import { Chat } from './pages/Chat';
 import { Announcements } from './pages/Announcements';
 import { AnnouncementsOutlet } from './pages/AnnouncementsOutlet';
 import { AnnouncementDetail } from './pages/AnnouncementDetail';
-import { Wiki } from './pages/Wiki';
+import { WikiLayout } from './pages/wiki/WikiLayout';
+import { WikiListPage } from './pages/wiki/WikiListPage';
+import { WikiViewPage } from './pages/wiki/WikiViewPage';
+import { WikiEditPage } from './pages/wiki/WikiEditPage';
 import { Schedule } from './pages/Schedule';
 import { Tasks } from './pages/Tasks';
 import { Files } from './pages/Files';
@@ -82,7 +85,13 @@ export const router = createBrowserRouter([
       },
       {
         path: 'wiki',
-        element: <Wiki />,
+        element: <WikiLayout />,
+        children: [
+          { index: true, element: <WikiListPage /> },
+          { path: 'new', element: <WikiEditPage mode="create" /> },
+          { path: 'view/:slug', element: <WikiViewPage /> },
+          { path: 'edit/:slug', element: <WikiEditPage mode="edit" /> },
+        ],
       },
       {
         path: 'schedule',

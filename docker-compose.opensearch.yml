@@ -1,0 +1,19 @@
+# 任意: Elasticsearch / OpenSearch による社内検索
+# 起動: docker compose -f docker-compose.opensearch.yml up -d
+# バックエンド .env: SEARCH_DRIVER=elasticsearch, ELASTICSEARCH_URL=http://localhost:9200
+# インデックス: php artisan search:reindex
+
+services:
+  opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    environment:
+      - discovery.type=single-node
+      - plugins.security.disabled=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - '9200:9200'
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+
+volumes:
+  opensearch-data:

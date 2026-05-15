@@ -8,7 +8,10 @@ use App\Http\Controllers\Api\ChatMessageController;
 use App\Http\Controllers\Api\ChatRoomController;
 use App\Http\Controllers\Api\FileController;
 use App\Http\Controllers\Api\GroupController;
+use App\Http\Controllers\Api\PayrollRunController;
+use App\Http\Controllers\Api\PayrollSlipController;
 use App\Http\Controllers\Api\ScheduleController;
+use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WikiPageController;
@@ -95,4 +98,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/wiki/pages', [WikiPageController::class, 'store']);
     Route::put('/wiki/pages/{wiki_page}', [WikiPageController::class, 'update']);
     Route::delete('/wiki/pages/{wiki_page}', [WikiPageController::class, 'destroy']);
+
+    Route::get('/search', [SearchController::class, 'index']);
+
+    Route::post('/payroll/runs', [PayrollRunController::class, 'store']);
+    Route::get('/payroll/runs/{payroll_run}', [PayrollRunController::class, 'show']);
+    Route::get('/payroll/slips', [PayrollSlipController::class, 'index']);
+    Route::get('/payroll/slips/{payroll_slip}', [PayrollSlipController::class, 'show']);
+    Route::get('/payroll/slips/{payroll_slip}/download', [PayrollSlipController::class, 'download']);
 });

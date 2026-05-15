@@ -1,158 +1,179 @@
-import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router';
+import { Card, CardContent } from '../components/Card';
 import { Badge } from '../components/Badge';
-import { Search as SearchIcon, FileText, MessageSquare, Users, Calendar } from 'lucide-react';
+import { apiGet } from '../lib/api';
+import { Megaphone, FileText, FolderOpen, ListTodo, Search as SearchIcon, Users } from 'lucide-react';
 
-const searchResults = [
-  {
-    id: 1,
-    type: 'document',
-    title: 'プロジェクト提案書 2026年度版',
-    description: '新規プロジェクトの提案資料です。市場分析と予算計画を含みます。',
-    date: '2026年4月15日',
-    author: '田中太郎',
-  },
-  {
-    id: 2,
-    type: 'chat',
-    title: 'デザインチーム - 新UIについて',
-    description: '新しいUIデザインのレビュー会議の議論内容です。',
-    date: '2026年4月14日',
-    author: '佐藤花子',
-  },
-  {
-    id: 3,
-    type: 'person',
-    title: '鈴木一郎',
-    description: '開発部 - シニアエンジニア',
-    date: '所属: 開発部',
-    author: '',
-  },
-  {
-    id: 4,
-    type: 'event',
-    title: '全体会議',
-    description: '月次の全体会議。各部署からの進捗報告を行います。',
-    date: '2026年4月20日 10:00',
-    author: '総務部',
-  },
-  {
-    id: 5,
-    type: 'document',
-    title: '勤怠管理マニュアル',
-    description: '勤怠管理システムの使用方法とよくある質問をまとめた資料です。',
-    date: '2026年4月10日',
-    author: '人事部',
-  },
-];
+type SearchHitType = 'announcement' | 'wiki' | 'task' | 'user' | 'file';
 
-const typeConfig = {
-  document: { icon: FileText, label: 'ドキュメント', color: 'text-primary' },
-  chat: { icon: MessageSquare, label: 'チャット', color: 'text-secondary' },
-  person: { icon: Users, label: '社員', color: 'text-purple-500' },
-  event: { icon: Calendar, label: 'イベント', color: 'text-orange-500' },
+type SearchHit = {
+  type: SearchHitType;
+  id: number;
+  title: string;
+  snippet: string;
+  url: string;
 };
+
+type SearchResponse = {
+  data: SearchHit[];
+  meta: { total: number; current_page: number; last_page: number };
+  engine?: string;
+};
+
+const typeConfig: Record<
+  SearchHitType,
+  { icon: typeof FileText; label: string; color: string }
+> = {
+  announcement: { icon: Megaphone, label: 'お知らせ', color: 'text-primary' },
+  wiki: { icon: FileText, label: 'Wiki', color: 'text-emerald-600' },
+  task: { icon: ListTodo, label: 'タスク', color: 'text-orange-500' },
+  user: { icon: Users, label: 'ユーザー', color: 'text-purple-500' },
+  file: { icon: FolderOpen, label: 'ファイル', color: 'text-sky-600' },
+};
+
+const TYPE_FILTERS: { id: SearchHitType | null; label: string }[] = [
+  { id: null, label: 'すべて' },
+  { id: 'announcement', label: 'お知らせ' },
+  { id: 'wiki', label: 'Wiki' },
+  { id: 'task', label: 'タスク' },
+  { id: 'user', label: 'ユーザー' },
+  { id: 'file', label: 'ファイル' },
+];
 
 export function Search() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [submittedQuery, setSubmittedQuery] = useState('');
+  const [selectedType, setSelectedType] = useState<SearchHitType | null>(null);
+  const [results, setResults] = useState<SearchHit[]>([]);
+  const [total, setTotal] = useState(0);
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [engine, setEngine] = useState<string | null>(null);
 
-  const filteredResults = selectedType 
-    ? searchResults.filter(result => result.type === selectedType)
-    : searchResults;
+  const load = useCallback(async () => {
+    const q = submittedQuery.trim();
+    if (!q) {
+      setResults([]);
+      setTotal(0);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const qs = new URLSearchParams({ q, per_page: '30' });
+      if (selectedType) qs.set('type', selectedType);
+      const res = await apiGet<SearchResponse>(`/api/search?${qs.toString()}`);
+      setResults(res.data);
+      setTotal(res.meta?.total ?? res.data.length);
+      setEngine(res.engine ?? null);
+      setMessage('');
+    } catch (e) {
+      setResults([]);
+      setTotal(0);
+      setMessage(e instanceof Error ? e.message : '検索に失敗しました。');
+    } finally {
+      setLoading(false);
+    }
+  }, [submittedQuery, selectedType]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittedQuery(searchQuery.trim());
+  };
 
   return (
     <div className="space-y-6">
-      {/* 検索バー */}
       <Card className="bg-gradient-to-br from-primary/5 to-secondary/5">
         <CardContent className="py-8">
           <div className="max-w-2xl mx-auto">
             <h2 className="text-2xl text-center mb-6">社内検索</h2>
-            <div className="relative">
+            <form onSubmit={onSubmit} className="relative">
               <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <input
-                type="text"
-                placeholder="ドキュメント、チャット、社員、イベントを検索..."
+                type="search"
+                placeholder="お知らせ・Wiki・タスク・ユーザー・ファイルを検索…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-12 pr-4 py-4 bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-lg"
               />
-            </div>
+            </form>
+            <p className="text-xs text-muted-foreground text-center mt-3">Enter で検索</p>
           </div>
         </CardContent>
       </Card>
 
-      {/* フィルター */}
       <div className="flex gap-2 flex-wrap">
-        <button
-          onClick={() => setSelectedType(null)}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            selectedType === null
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted hover:bg-muted/80'
-          }`}
-        >
-          すべて
-        </button>
-        {Object.entries(typeConfig).map(([type, config]) => (
-          <button
-            key={type}
-            onClick={() => setSelectedType(type)}
-            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-              selectedType === type
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted hover:bg-muted/80'
-            }`}
-          >
-            <config.icon className="w-4 h-4" />
-            {config.label}
-          </button>
-        ))}
+        {TYPE_FILTERS.map((f) => {
+          const Icon = f.id ? typeConfig[f.id].icon : null;
+          return (
+            <button
+              key={f.label}
+              type="button"
+              onClick={() => setSelectedType(f.id)}
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                selectedType === f.id ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
+              }`}
+            >
+              {Icon && <Icon className="w-4 h-4" />}
+              {f.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* 検索結果 */}
-      <div>
-        <div className="mb-4 text-sm text-muted-foreground">
-          {filteredResults.length}件の結果
-        </div>
-        <div className="space-y-4">
-          {filteredResults.map((result) => {
-            const TypeIcon = typeConfig[result.type as keyof typeof typeConfig].icon;
-            const typeColor = typeConfig[result.type as keyof typeof typeConfig].color;
-            const typeLabel = typeConfig[result.type as keyof typeof typeConfig].label;
+      {message && <p className="text-sm text-destructive">{message}</p>}
+      {loading && <p className="text-sm text-muted-foreground">検索中…</p>}
 
-            return (
-              <Card key={result.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className={`w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 ${typeColor}`}>
-                      <TypeIcon className="w-6 h-6" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between gap-4 mb-2">
-                        <h4>{result.title}</h4>
-                        <Badge variant="default">{typeLabel}</Badge>
+      {!loading && submittedQuery && (
+        <div>
+          <p className="mb-4 text-sm text-muted-foreground">
+            {total}件の結果（「{submittedQuery}」）
+            {engine && <span className="ml-2 text-xs">· エンジン: {engine}</span>}
+          </p>
+          {results.length === 0 && (
+            <p className="text-sm text-muted-foreground">該当する結果がありません。</p>
+          )}
+          <div className="space-y-4">
+            {results.map((result) => {
+              const cfg = typeConfig[result.type];
+              const TypeIcon = cfg.icon;
+              return (
+                <Link key={`${result.type}-${result.id}`} to={result.url}>
+                  <Card className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
+                        <div
+                          className={`w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 ${cfg.color}`}
+                        >
+                          <TypeIcon className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-4 mb-2">
+                            <h4 className="font-medium truncate">{result.title}</h4>
+                            <Badge variant="default">{cfg.label}</Badge>
+                          </div>
+                          {result.snippet && (
+                            <p className="text-sm text-muted-foreground">{result.snippet}</p>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {result.description}
-                      </p>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span>{result.date}</span>
-                        {result.author && (
-                          <>
-                            <span>•</span>
-                            <span>{result.author}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
+
+      {!submittedQuery && !loading && (
+        <p className="text-sm text-muted-foreground text-center">キーワードを入力して検索してください。</p>
+      )}
     </div>
   );
 }

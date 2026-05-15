@@ -177,6 +177,45 @@ pnpm test:watch
 
 ---
 
+## Phase 6 手動確認（社内検索・給与）
+
+Phase 6 の API・画面をローカルで触るときの目安です。実装の詳細は `doc/314_Phase6_実装状況.md` と `test/Phase6.md` を参照してください。
+
+### 手動確認の目安
+
+| 画面 | 確認内容 |
+|------|----------|
+| `/search` | ユーザー・ファイル検索、検索エンジン（`database` / `elasticsearch`）の表示 |
+| `/payroll` | 給与明細の表示、給与明細 PDF のダウンロード（管理者は「この月の給与を計算」も可） |
+
+バックエンドとフロントを起動したうえで、ログイン後に上記 URL を開いて確認します。
+
+### Elasticsearch / OpenSearch（任意）
+
+既定では DB 検索（`SEARCH_DRIVER=database`）です。Elasticsearch / OpenSearch を使う場合は次のとおりです。
+
+1. リポジトリルートで OpenSearch を起動する。
+
+```bash
+docker compose -f docker-compose.opensearch.yml up -d
+```
+
+2. **`src/backend/.env`** で検索ドライバを切り替える（`src/backend/.env.example` の `SEARCH_DRIVER` / `ELASTICSEARCH_*` を参照）。
+
+```env
+SEARCH_DRIVER=elasticsearch
+ELASTICSEARCH_URL=http://localhost:9200
+```
+
+3. インデックスを再構築する。
+
+```bash
+cd src/backend
+php artisan search:reindex
+```
+
+---
+
 ## 🌐 Production Deployment
 
 * AWS EC2 (Ubuntu)
@@ -253,6 +292,8 @@ PostgreSQL
 
 * 社内検索
 * 給与計算
+
+実装状況の詳細は `doc/314_Phase6_実装状況.md` を参照。手動確認手順は本 README の「Phase 6 手動確認（社内検索・給与）」を参照。
 
 ---
 
